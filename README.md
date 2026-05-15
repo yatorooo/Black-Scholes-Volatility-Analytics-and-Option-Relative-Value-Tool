@@ -1,4 +1,4 @@
-# Black-Scholes Implied Volatility Pricer
+# Black-Scholes Volatility Analytics and Option Relative Value Tool
 
 This project is structured to build a Python workflow for pricing listed equity options with the Black-Scholes model, estimating implied volatility from market option prices, comparing it with realized historical volatility, and visualizing the volatility smile and volatility surface.
 
