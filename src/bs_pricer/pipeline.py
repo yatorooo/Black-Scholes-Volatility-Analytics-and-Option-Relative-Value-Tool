@@ -3,6 +3,7 @@
 from bs_pricer.cleaning import clean_equity_history, clean_option_chain, save_processed_data
 from bs_pricer.config import MarketConfig
 from bs_pricer.data_download import download_equity_history, download_option_chains, save_raw_data
+from bs_pricer.implied_volatility import add_implied_volatility
 
 
 def run_pipeline(config: MarketConfig | None = None) -> dict[str, object]:
@@ -21,14 +22,20 @@ def run_pipeline(config: MarketConfig | None = None) -> dict[str, object]:
         config,
     )
 
+    options_with_iv = add_implied_volatility(options_clean, config)
+    options_with_iv_path = config.processed_data_dir / f"{config.ticker}_options_with_iv.csv"
+    options_with_iv.to_csv(options_with_iv_path, index=False)
+
     return {
         "config": config,
         "equity_history": equity_history,
         "option_chains": option_chains,
         "equity_clean": equity_clean,
         "options_clean": options_clean,
+        "options_with_iv": options_with_iv,
         "equity_path": equity_raw_path,
         "options_path": options_raw_path,
         "equity_processed_path": equity_processed_path,
         "options_processed_path": options_processed_path,
+        "options_with_iv_path": options_with_iv_path,
     }
