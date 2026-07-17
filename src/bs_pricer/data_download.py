@@ -32,12 +32,13 @@ def save_raw_data(
     equity_history: pd.DataFrame,
     option_chains: pd.DataFrame,
     config: MarketConfig,
+    snapshot_id: str,
 ) -> tuple[Path, Path]:
     """Persist raw downloaded datasets."""
     config.raw_data_dir.mkdir(parents=True, exist_ok=True)
 
-    equity_path = config.raw_data_dir / f"{config.ticker}_equity_history.csv"
-    options_path = config.raw_data_dir / f"{config.ticker}_option_chains.csv"
+    equity_path = config.raw_data_dir / f"{snapshot_id}_equity_history.csv"
+    options_path = config.raw_data_dir / f"{snapshot_id}_option_chains.csv"
 
     equity_history.to_csv(equity_path)
     option_chains.to_csv(options_path, index=False)

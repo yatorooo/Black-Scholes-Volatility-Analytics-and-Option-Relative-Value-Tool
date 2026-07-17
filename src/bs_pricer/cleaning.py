@@ -33,7 +33,10 @@ def add_option_features(
     options["expiry"] = pd.to_datetime(options["expiry"])
     valuation_date = pd.Timestamp.today().normalize()
 
-    options["mid_price"] = (options["bid"] + options["ask"]) / 2
+    has_live_quote = (options["bid"] > 0) & (options["ask"] > 0) & (options["ask"] >= options["bid"])
+    quoted_mid = (options["bid"] + options["ask"]) / 2
+    options["mid_price"] = quoted_mid.where(has_live_quote, options["lastPrice"])
+
     options["spot"] = spot_price
     options["moneyness"] = options["strike"] / options["spot"]
     options["days_to_expiry"] = (options["expiry"] - valuation_date).dt.days
@@ -72,20 +75,31 @@ def clean_option_chain(
         "days_to_expiry",
         "time_to_expiry",
     ]
+    options = options[columns]
 
-    return options[columns]
+    traded = options["volume"].fillna(0) > 0
+    priced = options["mid_price"] > 0
+
+    is_call = options["option_type"] == "call"
+    intrinsic_value = (options["spot"] - options["strike"]).clip(lower=0).where(
+        is_call, (options["strike"] - options["spot"]).clip(lower=0)
+    )
+    not_arbitrage_violation = options["mid_price"] >= intrinsic_value
+
+    return options[traded & priced & not_arbitrage_violation].reset_index(drop=True)
 
 
 def save_processed_data(
     equity_clean: pd.DataFrame,
     options_clean: pd.DataFrame,
     config: MarketConfig,
+    snapshot_id: str,
 ) -> tuple[Path, Path]:
     """Persist cleaned datasets."""
     config.processed_data_dir.mkdir(parents=True, exist_ok=True)
 
-    equity_path = config.processed_data_dir / f"{config.ticker}_equity_clean.csv"
-    options_path = config.processed_data_dir / f"{config.ticker}_options_clean.csv"
+    equity_path = config.processed_data_dir / f"{snapshot_id}_equity_clean.csv"
+    options_path = config.processed_data_dir / f"{snapshot_id}_options_clean.csv"
 
     equity_clean.to_csv(equity_path, index=False)
     options_clean.to_csv(options_path, index=False)

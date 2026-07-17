@@ -14,6 +14,7 @@ def main() -> None:
     result = run_pipeline(MarketConfig())
 
     print("Download complete")
+    print(f"Snapshot: {result['snapshot_id']}")
     print(f"Equity history: {result['equity_path']}")
     print(f"Option chains: {result['options_path']}")
 

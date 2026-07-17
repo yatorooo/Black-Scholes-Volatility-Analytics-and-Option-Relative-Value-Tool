@@ -1,8 +1,10 @@
 """Visualization functions for smiles, term structure, and volatility surfaces."""
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from scipy.interpolate import griddata
 
 
 def _iv_data(
@@ -49,24 +51,35 @@ def plot_volatility_surface(
     options: pd.DataFrame,
     option_type: str = "call",
     x: str = "moneyness",
+    grid_size: int = 60,
 ):
-    """Plot implied volatility across strike or moneyness and maturity."""
-    data = _iv_data(options, option_type=option_type)
-    data[x] = data[x].round(3)
+    """Plot implied volatility across strike or moneyness and maturity.
 
-    surface = data.pivot_table(
-        index="time_to_expiry",
-        columns=x,
-        values="solved_iv",
-        aggfunc="mean",
-    ).sort_index()
+    The raw solved IVs sit at irregular, sparse (x, time_to_expiry) points, so
+    they are interpolated onto a dense regular grid before surfacing --
+    plotting the raw points directly as a grid leaves most cells empty and
+    renders as a torn, holey mesh.
+    """
+    data = _iv_data(options, option_type=option_type)
+    points = data.groupby(["time_to_expiry", x], as_index=False)["solved_iv"].mean()
+
+    x_grid = np.linspace(points[x].min(), points[x].max(), grid_size)
+    y_grid = np.linspace(points["time_to_expiry"].min(), points["time_to_expiry"].max(), grid_size)
+    x_mesh, y_mesh = np.meshgrid(x_grid, y_grid)
+
+    z_mesh = griddata(
+        points=(points[x].to_numpy(), points["time_to_expiry"].to_numpy()),
+        values=points["solved_iv"].to_numpy(),
+        xi=(x_mesh, y_mesh),
+        method="linear",
+    )
 
     fig = go.Figure(
         data=[
             go.Surface(
-                x=surface.columns.to_numpy(),
-                y=surface.index.to_numpy(),
-                z=surface.to_numpy(),
+                x=x_grid,
+                y=y_grid,
+                z=z_mesh,
                 colorscale="Viridis",
             )
         ]
